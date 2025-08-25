@@ -11,6 +11,7 @@ import { Loader2, Mail, Lock, User, Chrome } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 export default function Auth() {
+  console.log('Auth component mounted');
   const [loading, setLoading] = useState(false);
   const [checkingAuth, setCheckingAuth] = useState(false);
   const [email, setEmail] = useState("");
@@ -20,6 +21,7 @@ export default function Auth() {
   const { toast } = useToast();
 
   useEffect(() => {
+    console.log('Auth useEffect running');
     // Check if user is already logged in but not authorized
     checkUserAuthorization();
   }, []);
@@ -29,24 +31,23 @@ export default function Auth() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         setCheckingAuth(true);
-        // Check if user is authorized
+        // Check if user is authorized - using maybeSingle to avoid errors
         const { data: authorized, error } = await supabase
           .from('authorized_users')
           .select('authorized')
           .eq('email', user.email)
-          .single();
+          .maybeSingle();
 
-        // If no entry exists for this user, don't block them
-        if (error && error.code === 'PGRST116') {
-          // User not in authorized_users table yet
+        // If error or no data, user is not in the list yet
+        if (error || !authorized) {
           console.log('User not in authorized list yet');
           setCheckingAuth(false);
           return;
         }
 
-        if (authorized?.authorized) {
+        if (authorized.authorized === true) {
           navigate("/");
-        } else if (authorized === null || authorized?.authorized === false) {
+        } else if (authorized.authorized === false) {
           toast({
             title: "Acesso não autorizado",
             description: "Sua conta precisa ser autorizada por um administrador.",
@@ -56,6 +57,7 @@ export default function Auth() {
         }
         setCheckingAuth(false);
       }
+      setCheckingAuth(false);
     } catch (error) {
       console.error('Error checking authorization:', error);
       setCheckingAuth(false);
@@ -130,15 +132,15 @@ export default function Auth() {
           variant: "destructive",
         });
       } else if (data.user) {
-        // Check if user is authorized
+        // Check if user is authorized - using maybeSingle to avoid errors
         const { data: authorized, error: authError } = await supabase
           .from('authorized_users')
           .select('authorized')
           .eq('email', data.user.email)
-          .single();
+          .maybeSingle();
 
         // If user is not in the table, add them as unauthorized
-        if (authError && authError.code === 'PGRST116') {
+        if (!authorized) {
           await supabase.from('authorized_users').insert({
             email: data.user.email,
             authorized: false
@@ -150,9 +152,9 @@ export default function Auth() {
             variant: "default",
           });
           await supabase.auth.signOut();
-        } else if (authorized?.authorized) {
+        } else if (authorized.authorized === true) {
           navigate("/");
-        } else {
+        } else if (authorized.authorized === false) {
           toast({
             title: "Acesso não autorizado",
             description: "Sua conta precisa ser autorizada por um administrador.",
