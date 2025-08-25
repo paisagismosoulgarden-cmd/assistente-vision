@@ -25,26 +25,39 @@ export default function Auth() {
   }, []);
 
   const checkUserAuthorization = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setCheckingAuth(true);
-      // Check if user is authorized
-      const { data: authorized } = await supabase
-        .from('authorized_users')
-        .select('authorized')
-        .eq('email', user.email)
-        .single();
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        setCheckingAuth(true);
+        // Check if user is authorized
+        const { data: authorized, error } = await supabase
+          .from('authorized_users')
+          .select('authorized')
+          .eq('email', user.email)
+          .single();
 
-      if (authorized?.authorized) {
-        navigate("/");
-      } else {
-        toast({
-          title: "Acesso não autorizado",
-          description: "Sua conta precisa ser autorizada por um administrador.",
-          variant: "destructive",
-        });
-        await supabase.auth.signOut();
+        // If no entry exists for this user, don't block them
+        if (error && error.code === 'PGRST116') {
+          // User not in authorized_users table yet
+          console.log('User not in authorized list yet');
+          setCheckingAuth(false);
+          return;
+        }
+
+        if (authorized?.authorized) {
+          navigate("/");
+        } else if (authorized === null || authorized?.authorized === false) {
+          toast({
+            title: "Acesso não autorizado",
+            description: "Sua conta precisa ser autorizada por um administrador.",
+            variant: "destructive",
+          });
+          await supabase.auth.signOut();
+        }
+        setCheckingAuth(false);
       }
+    } catch (error) {
+      console.error('Error checking authorization:', error);
       setCheckingAuth(false);
     }
   };
@@ -104,35 +117,57 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
 
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (error) {
-      toast({
-        title: "Erro no login",
-        description: error.message,
-        variant: "destructive",
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
       });
-    } else if (data.user) {
-      // Check if user is authorized
-      const { data: authorized } = await supabase
-        .from('authorized_users')
-        .select('authorized')
-        .eq('email', data.user.email)
-        .single();
 
-      if (authorized?.authorized) {
-        navigate("/");
-      } else {
+      if (error) {
         toast({
-          title: "Acesso não autorizado",
-          description: "Sua conta precisa ser autorizada por um administrador.",
+          title: "Erro no login",
+          description: error.message,
           variant: "destructive",
         });
-        await supabase.auth.signOut();
+      } else if (data.user) {
+        // Check if user is authorized
+        const { data: authorized, error: authError } = await supabase
+          .from('authorized_users')
+          .select('authorized')
+          .eq('email', data.user.email)
+          .single();
+
+        // If user is not in the table, add them as unauthorized
+        if (authError && authError.code === 'PGRST116') {
+          await supabase.from('authorized_users').insert({
+            email: data.user.email,
+            authorized: false
+          });
+          
+          toast({
+            title: "Acesso pendente",
+            description: "Sua conta foi registrada e aguarda autorização de um administrador.",
+            variant: "default",
+          });
+          await supabase.auth.signOut();
+        } else if (authorized?.authorized) {
+          navigate("/");
+        } else {
+          toast({
+            title: "Acesso não autorizado",
+            description: "Sua conta precisa ser autorizada por um administrador.",
+            variant: "destructive",
+          });
+          await supabase.auth.signOut();
+        }
       }
+    } catch (error) {
+      console.error('Login error:', error);
+      toast({
+        title: "Erro ao fazer login",
+        description: "Ocorreu um erro inesperado. Tente novamente.",
+        variant: "destructive",
+      });
     }
     setLoading(false);
   };
