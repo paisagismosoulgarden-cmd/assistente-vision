@@ -65,7 +65,7 @@ const App = () => {
           <Routes>
             <Route path="/test" element={<TestPage />} />
             <Route path="/auth" element={!session ? <Auth /> : <Navigate to="/" />} />
-            <Route path="/admin" element={session ? <Admin /> : <Navigate to="/auth" />} />
+            <Route path="/admin" element={<Admin />} />
             <Route path="/" element={session ? <AppLayout /> : <Navigate to="/auth" />}>
               <Route index element={<Dashboard />} />
               <Route path="finance" element={<Finance />} />
