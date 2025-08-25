@@ -14,6 +14,7 @@ import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 import Auth from "./pages/Auth";
 import Admin from "./pages/Admin";
+import TestPage from "./pages/TestPage";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session, User } from "@supabase/supabase-js";
@@ -62,6 +63,7 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
+            <Route path="/test" element={<TestPage />} />
             <Route path="/auth" element={!session ? <Auth /> : <Navigate to="/" />} />
             <Route path="/admin" element={session ? <Admin /> : <Navigate to="/auth" />} />
             <Route path="/" element={session ? <AppLayout /> : <Navigate to="/auth" />}>

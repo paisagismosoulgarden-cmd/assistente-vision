@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -11,74 +11,32 @@ import { Loader2, Mail, Lock, User, Chrome } from "lucide-react";
 import { Separator } from "@/components/ui/separator";
 
 export default function Auth() {
-  console.log('Auth component mounted');
   const [loading, setLoading] = useState(false);
-  const [checkingAuth, setCheckingAuth] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  useEffect(() => {
-    console.log('Auth useEffect running');
-    // Check if user is already logged in but not authorized
-    checkUserAuthorization();
-  }, []);
-
-  const checkUserAuthorization = async () => {
-    try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setCheckingAuth(true);
-        // Check if user is authorized - using maybeSingle to avoid errors
-        const { data: authorized, error } = await supabase
-          .from('authorized_users')
-          .select('authorized')
-          .eq('email', user.email)
-          .maybeSingle();
-
-        // If error or no data, user is not in the list yet
-        if (error || !authorized) {
-          console.log('User not in authorized list yet');
-          setCheckingAuth(false);
-          return;
-        }
-
-        if (authorized.authorized === true) {
-          navigate("/");
-        } else if (authorized.authorized === false) {
-          toast({
-            title: "Acesso não autorizado",
-            description: "Sua conta precisa ser autorizada por um administrador.",
-            variant: "destructive",
-          });
-          await supabase.auth.signOut();
-        }
-        setCheckingAuth(false);
-      }
-      setCheckingAuth(false);
-    } catch (error) {
-      console.error('Error checking authorization:', error);
-      setCheckingAuth(false);
-    }
-  };
-
   const handleGoogleSignIn = async () => {
     setLoading(true);
-    const { error } = await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: {
-        redirectTo: `${window.location.origin}/auth`,
-      }
-    });
-
-    if (error) {
-      toast({
-        title: "Erro no login com Google",
-        description: error.message,
-        variant: "destructive",
+    try {
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: {
+          redirectTo: `${window.location.origin}/`,
+        }
       });
+
+      if (error) {
+        toast({
+          title: "Erro no login com Google",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    } catch (error) {
+      console.error('Google sign in error:', error);
     }
     setLoading(false);
   };
@@ -87,30 +45,32 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: `${window.location.origin}/`,
-        data: {
-          full_name: fullName,
+    try {
+      const { error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          emailRedirectTo: `${window.location.origin}/`,
+          data: {
+            full_name: fullName,
+          },
         },
-      },
-    });
+      });
 
-    if (error) {
-      toast({
-        title: "Erro no cadastro",
-        description: error.message === "User already registered" 
-          ? "Este email já está cadastrado. Por favor, faça login."
-          : error.message,
-        variant: "destructive",
-      });
-    } else {
-      toast({
-        title: "Cadastro realizado!",
-        description: "Verifique seu email para confirmar o cadastro.",
-      });
+      if (error) {
+        toast({
+          title: "Erro no cadastro",
+          description: error.message,
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Cadastro realizado!",
+          description: "Verifique seu email para confirmar o cadastro.",
+        });
+      }
+    } catch (error) {
+      console.error('Sign up error:', error);
     }
     setLoading(false);
   };
@@ -132,55 +92,13 @@ export default function Auth() {
           variant: "destructive",
         });
       } else if (data.user) {
-        // Check if user is authorized - using maybeSingle to avoid errors
-        const { data: authorized, error: authError } = await supabase
-          .from('authorized_users')
-          .select('authorized')
-          .eq('email', data.user.email)
-          .maybeSingle();
-
-        // If user is not in the table, add them as unauthorized
-        if (!authorized) {
-          await supabase.from('authorized_users').insert({
-            email: data.user.email,
-            authorized: false
-          });
-          
-          toast({
-            title: "Acesso pendente",
-            description: "Sua conta foi registrada e aguarda autorização de um administrador.",
-            variant: "default",
-          });
-          await supabase.auth.signOut();
-        } else if (authorized.authorized === true) {
-          navigate("/");
-        } else if (authorized.authorized === false) {
-          toast({
-            title: "Acesso não autorizado",
-            description: "Sua conta precisa ser autorizada por um administrador.",
-            variant: "destructive",
-          });
-          await supabase.auth.signOut();
-        }
+        navigate("/");
       }
     } catch (error) {
-      console.error('Login error:', error);
-      toast({
-        title: "Erro ao fazer login",
-        description: "Ocorreu um erro inesperado. Tente novamente.",
-        variant: "destructive",
-      });
+      console.error('Sign in error:', error);
     }
     setLoading(false);
   };
-
-  if (checkingAuth) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background/95 to-primary/5 px-4">
@@ -224,117 +142,118 @@ export default function Auth() {
                 </span>
               </div>
             </div>
-          <Tabs defaultValue="login" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="login">Login</TabsTrigger>
-              <TabsTrigger value="register">Cadastro</TabsTrigger>
-            </TabsList>
-            
-            <TabsContent value="login">
-              <form onSubmit={handleSignIn} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="login-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="login-email"
-                      type="email"
-                      placeholder="seu@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="pl-10"
-                    />
+
+            <Tabs defaultValue="login" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="login">Login</TabsTrigger>
+                <TabsTrigger value="register">Cadastro</TabsTrigger>
+              </TabsList>
+              
+              <TabsContent value="login">
+                <form onSubmit={handleSignIn} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="login-email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="login-email"
+                        type="email"
+                        placeholder="seu@email.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className="pl-10"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="login-password">Senha</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="login-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="pl-10"
-                    />
+                  <div className="space-y-2">
+                    <Label htmlFor="login-password">Senha</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="login-password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        className="pl-10"
+                      />
+                    </div>
                   </div>
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Entrando...
-                    </>
-                  ) : (
-                    "Entrar"
-                  )}
-                </Button>
-              </form>
-            </TabsContent>
-            
-            <TabsContent value="register">
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="register-name">Nome completo</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="register-name"
-                      type="text"
-                      placeholder="João Silva"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      required
-                      className="pl-10"
-                    />
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Entrando...
+                      </>
+                    ) : (
+                      "Entrar"
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+              
+              <TabsContent value="register">
+                <form onSubmit={handleSignUp} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="register-name">Nome completo</Label>
+                    <div className="relative">
+                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="register-name"
+                        type="text"
+                        placeholder="João Silva"
+                        value={fullName}
+                        onChange={(e) => setFullName(e.target.value)}
+                        required
+                        className="pl-10"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="register-email">Email</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="register-email"
-                      type="email"
-                      placeholder="seu@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                      className="pl-10"
-                    />
+                  <div className="space-y-2">
+                    <Label htmlFor="register-email">Email</Label>
+                    <div className="relative">
+                      <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="register-email"
+                        type="email"
+                        placeholder="seu@email.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        required
+                        className="pl-10"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="register-password">Senha</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="register-password"
-                      type="password"
-                      placeholder="••••••••"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                      className="pl-10"
-                    />
+                  <div className="space-y-2">
+                    <Label htmlFor="register-password">Senha</Label>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        id="register-password"
+                        type="password"
+                        placeholder="••••••••"
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        required
+                        className="pl-10"
+                      />
+                    </div>
                   </div>
-                </div>
-                <Button type="submit" className="w-full" disabled={loading}>
-                  {loading ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Cadastrando...
-                    </>
-                  ) : (
-                    "Cadastrar"
-                  )}
-                </Button>
-              </form>
-            </TabsContent>
-          </Tabs>
+                  <Button type="submit" className="w-full" disabled={loading}>
+                    {loading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Cadastrando...
+                      </>
+                    ) : (
+                      "Cadastrar"
+                    )}
+                  </Button>
+                </form>
+              </TabsContent>
+            </Tabs>
           </div>
         </CardContent>
       </Card>
