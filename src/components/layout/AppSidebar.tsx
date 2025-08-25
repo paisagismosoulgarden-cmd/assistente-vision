@@ -1,4 +1,5 @@
 import { NavLink } from "react-router-dom";
+import { useState, useEffect } from "react";
 import {
   LayoutDashboard,
   DollarSign,
@@ -10,8 +11,11 @@ import {
   CreditCard,
   Clock,
   FileText,
+  Shield,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 interface AppSidebarProps {
   onNavigate?: () => void;
@@ -64,6 +68,24 @@ const secondaryItems = [
 ];
 
 export const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
+  const { user } = useAuth();
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    checkIfAdmin();
+  }, [user]);
+
+  const checkIfAdmin = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from('admin_users')
+      .select('*')
+      .eq('user_id', user.id)
+      .single();
+    
+    setIsAdmin(!!data);
+  };
   return (
     <aside className="h-full bg-card border-r flex flex-col">
       <div className="p-4">
@@ -117,6 +139,22 @@ export const AppSidebar = ({ onNavigate }: AppSidebarProps) => {
               {item.title}
             </NavLink>
           ))}
+          {isAdmin && (
+            <NavLink
+              to="/admin"
+              onClick={onNavigate}
+              className={({ isActive }) =>
+                cn(
+                  "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-all",
+                  "hover:bg-muted",
+                  isActive && "bg-muted text-primary"
+                )
+              }
+            >
+              <Shield className="h-5 w-5 text-warning" />
+              Administração
+            </NavLink>
+          )}
         </nav>
 
         <div className="mt-4 p-3 rounded-lg bg-gradient-to-r from-primary/10 to-secondary/10 border border-primary/20">

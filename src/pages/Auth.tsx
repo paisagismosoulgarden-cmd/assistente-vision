@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -7,15 +7,66 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { Loader2, Mail, Lock, User } from "lucide-react";
+import { Loader2, Mail, Lock, User, Chrome } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
 
 export default function Auth() {
   const [loading, setLoading] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(false);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fullName, setFullName] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  useEffect(() => {
+    // Check if user is already logged in but not authorized
+    checkUserAuthorization();
+  }, []);
+
+  const checkUserAuthorization = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      setCheckingAuth(true);
+      // Check if user is authorized
+      const { data: authorized } = await supabase
+        .from('authorized_users')
+        .select('authorized')
+        .eq('email', user.email)
+        .single();
+
+      if (authorized?.authorized) {
+        navigate("/");
+      } else {
+        toast({
+          title: "Acesso não autorizado",
+          description: "Sua conta precisa ser autorizada por um administrador.",
+          variant: "destructive",
+        });
+        await supabase.auth.signOut();
+      }
+      setCheckingAuth(false);
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setLoading(true);
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: 'google',
+      options: {
+        redirectTo: `${window.location.origin}/auth`,
+      }
+    });
+
+    if (error) {
+      toast({
+        title: "Erro no login com Google",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+    setLoading(false);
+  };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +104,7 @@ export default function Auth() {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -64,11 +115,35 @@ export default function Auth() {
         description: error.message,
         variant: "destructive",
       });
-    } else {
-      navigate("/");
+    } else if (data.user) {
+      // Check if user is authorized
+      const { data: authorized } = await supabase
+        .from('authorized_users')
+        .select('authorized')
+        .eq('email', data.user.email)
+        .single();
+
+      if (authorized?.authorized) {
+        navigate("/");
+      } else {
+        toast({
+          title: "Acesso não autorizado",
+          description: "Sua conta precisa ser autorizada por um administrador.",
+          variant: "destructive",
+        });
+        await supabase.auth.signOut();
+      }
     }
     setLoading(false);
   };
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background/95 to-primary/5 px-4">
@@ -82,6 +157,36 @@ export default function Auth() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          <div className="space-y-4">
+            <Button 
+              onClick={handleGoogleSignIn} 
+              className="w-full" 
+              variant="outline"
+              disabled={loading}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Conectando...
+                </>
+              ) : (
+                <>
+                  <Chrome className="mr-2 h-4 w-4" />
+                  Entrar com Google
+                </>
+              )}
+            </Button>
+            
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <Separator className="w-full" />
+              </div>
+              <div className="relative flex justify-center text-xs uppercase">
+                <span className="bg-background px-2 text-muted-foreground">
+                  Ou continue com
+                </span>
+              </div>
+            </div>
           <Tabs defaultValue="login" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="login">Login</TabsTrigger>
@@ -193,6 +298,7 @@ export default function Auth() {
               </form>
             </TabsContent>
           </Tabs>
+          </div>
         </CardContent>
       </Card>
     </div>

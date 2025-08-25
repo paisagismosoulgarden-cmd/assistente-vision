@@ -14,6 +14,24 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_users: {
+        Row: {
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       appointments: {
         Row: {
           created_at: string
@@ -56,6 +74,36 @@ export type Database = {
           type?: string | null
           updated_at?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      authorized_users: {
+        Row: {
+          authorized: boolean | null
+          authorized_at: string | null
+          authorized_by: string | null
+          created_at: string
+          email: string
+          id: string
+          updated_at: string
+        }
+        Insert: {
+          authorized?: boolean | null
+          authorized_at?: string | null
+          authorized_by?: string | null
+          created_at?: string
+          email: string
+          id?: string
+          updated_at?: string
+        }
+        Update: {
+          authorized?: boolean | null
+          authorized_at?: string | null
+          authorized_by?: string | null
+          created_at?: string
+          email?: string
+          id?: string
+          updated_at?: string
         }
         Relationships: []
       }
