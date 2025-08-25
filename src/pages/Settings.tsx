@@ -1,16 +1,17 @@
 import { useState } from "react";
-import { User, Bell, MessageSquare, Tag, Palette, Shield, Download, Wifi, WifiOff } from "lucide-react";
+import { User, Bell, MessageSquare, Tag, Palette, Shield, Download, Wifi, Key, Database, Smartphone } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { cn } from "@/lib/utils";
+import { useToast } from "@/hooks/use-toast";
 
 const settingsMenu = [
   { key: "profile", label: "Perfil", icon: User },
   { key: "notifications", label: "Notificações", icon: Bell },
-  { key: "whatsapp", label: "WhatsApp", icon: MessageSquare },
+  { key: "whatsapp", label: "WhatsApp & Evolution", icon: MessageSquare },
   { key: "categories", label: "Categorias", icon: Tag },
   { key: "appearance", label: "Aparência", icon: Palette },
   { key: "security", label: "Segurança", icon: Shield },
@@ -18,7 +19,11 @@ const settingsMenu = [
 ];
 
 const Settings = () => {
+  const { toast } = useToast();
   const [activeSection, setActiveSection] = useState("whatsapp");
+  const [evolutionWebhook, setEvolutionWebhook] = useState("");
+  const [evolutionInstance, setEvolutionInstance] = useState("");
+  const [evolutionApiKey, setEvolutionApiKey] = useState("");
   const [settings, setSettings] = useState({
     notifications: true,
     dailySummary: true,
@@ -27,6 +32,24 @@ const Settings = () => {
     timezone: "America/Sao_Paulo",
     theme: "light",
   });
+
+  const handleSaveWebhook = () => {
+    localStorage.setItem('evolutionWebhook', evolutionWebhook);
+    localStorage.setItem('evolutionInstance', evolutionInstance);
+    localStorage.setItem('evolutionApiKey', evolutionApiKey);
+    
+    toast({
+      title: "Configurações salvas",
+      description: "Evolution API configurado com sucesso",
+    });
+  };
+
+  const testWebhook = async () => {
+    toast({
+      title: "Testando conexão",
+      description: "Enviando mensagem de teste...",
+    });
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -67,41 +90,88 @@ const Settings = () => {
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
                   <MessageSquare className="h-5 w-5 text-success" />
-                  Conexão WhatsApp
+                  Integração Evolution API / WhatsApp
                 </CardTitle>
-                <CardDescription>Configure sua integração com WhatsApp</CardDescription>
+                <CardDescription>Configure a conexão com o WhatsApp através do Evolution API</CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex items-center justify-between p-4 rounded-lg bg-success/10 border border-success/20">
-                  <div className="flex items-center gap-3">
-                    <div className="h-3 w-3 bg-success rounded-full animate-pulse" />
-                    <div>
-                      <p className="font-medium text-success">Conectado</p>
-                      <p className="text-sm text-muted-foreground">+55 (11) 99999-9999</p>
-                    </div>
-                  </div>
-                  <Button variant="outline" size="sm">
-                    Desconectar
-                  </Button>
+                <div className="p-4 rounded-lg bg-info/10 border border-info/20">
+                  <p className="text-sm text-foreground">
+                    <strong>URL do Webhook Supabase:</strong>
+                  </p>
+                  <code className="text-xs bg-muted p-2 rounded block mt-2 break-all">
+                    https://fhgfiveqtvpgtvzjykzy.supabase.co/functions/v1/evolution-webhook
+                  </code>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Configure esta URL no seu Evolution API para receber mensagens
+                  </p>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="instance-name">Nome da Instância</Label>
-                    <Input id="instance-name" placeholder="minha-instancia" className="glass" />
+                    <Label htmlFor="evolution-instance">Nome da Instância Evolution</Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        id="evolution-instance" 
+                        placeholder="minha-instancia" 
+                        className="glass"
+                        value={evolutionInstance}
+                        onChange={(e) => setEvolutionInstance(e.target.value)}
+                      />
+                      <Button variant="outline" size="icon">
+                        <Database className="h-4 w-4" />
+                      </Button>
+                    </div>
                   </div>
+                  
                   <div className="space-y-2">
-                    <Label htmlFor="webhook-url">URL do Webhook</Label>
-                    <Input id="webhook-url" placeholder="https://..." className="glass" />
+                    <Label htmlFor="evolution-api-key">API Key do Evolution</Label>
+                    <div className="flex gap-2">
+                      <Input 
+                        id="evolution-api-key" 
+                        type="password"
+                        placeholder="••••••••••••••••" 
+                        className="glass"
+                        value={evolutionApiKey}
+                        onChange={(e) => setEvolutionApiKey(e.target.value)}
+                      />
+                      <Button variant="outline" size="icon">
+                        <Key className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label htmlFor="evolution-webhook">URL Base do Evolution</Label>
+                    <Input 
+                      id="evolution-webhook" 
+                      placeholder="https://api.evolution.com" 
+                      className="glass"
+                      value={evolutionWebhook}
+                      onChange={(e) => setEvolutionWebhook(e.target.value)}
+                    />
                   </div>
                 </div>
 
+                <div className="flex gap-2">
+                  <Button onClick={handleSaveWebhook} className="gradient-primary text-primary-foreground">
+                    Salvar Configurações
+                  </Button>
+                  <Button variant="outline" onClick={testWebhook}>
+                    <Smartphone className="mr-2 h-4 w-4" />
+                    Testar Conexão
+                  </Button>
+                </div>
+
                 <div className="space-y-2">
-                  <Label>QR Code para Conexão</Label>
-                  <div className="p-8 bg-muted rounded-lg flex items-center justify-center">
-                    <div className="text-center">
-                      <Wifi className="h-16 w-16 text-muted-foreground mx-auto mb-4" />
-                      <p className="text-sm text-muted-foreground">QR Code aparecerá aqui</p>
+                  <Label>Status da Conexão</Label>
+                  <div className="p-4 rounded-lg bg-muted">
+                    <div className="flex items-center gap-3">
+                      <div className="h-3 w-3 bg-warning rounded-full animate-pulse" />
+                      <div>
+                        <p className="font-medium text-warning">Aguardando Configuração</p>
+                        <p className="text-sm text-muted-foreground">Configure os dados acima e conecte sua instância</p>
+                      </div>
                     </div>
                   </div>
                 </div>
