@@ -1,4 +1,4 @@
-import { Calendar, Clock, MapPin, Video, Users } from "lucide-react";
+import { Calendar, Clock, MapPin, Video, Users, Briefcase, Heart, Star } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
 
@@ -11,7 +11,8 @@ const appointments = [
     location: "Online",
     type: "meeting",
     icon: Video,
-    color: "text-secondary",
+    priority: "high",
+    duration: "1h",
   },
   {
     id: 2,
@@ -20,8 +21,9 @@ const appointments = [
     date: "Hoje",
     location: "Dr. Silva - Centro",
     type: "health",
-    icon: Users,
-    color: "text-error",
+    icon: Heart,
+    priority: "medium",
+    duration: "30min",
   },
   {
     id: 3,
@@ -30,8 +32,9 @@ const appointments = [
     date: "Amanhã",
     location: "Restaurante Plaza",
     type: "business",
-    icon: MapPin,
-    color: "text-warning",
+    icon: Briefcase,
+    priority: "high",
+    duration: "2h",
   },
   {
     id: 4,
@@ -40,16 +43,30 @@ const appointments = [
     date: "Amanhã",
     location: "Smart Fit",
     type: "personal",
-    icon: Clock,
-    color: "text-success",
+    icon: Star,
+    priority: "low",
+    duration: "1h30",
   },
 ];
 
+const typeGradients = {
+  meeting: "from-secondary/20 to-secondary/5",
+  health: "from-error/20 to-error/5",
+  business: "from-warning/20 to-warning/5",
+  personal: "from-success/20 to-success/5",
+};
+
 const typeColors = {
-  meeting: "bg-secondary/10 text-secondary border-secondary/20",
-  health: "bg-error/10 text-error border-error/20",
-  business: "bg-warning/10 text-warning border-warning/20",
-  personal: "bg-success/10 text-success border-success/20",
+  meeting: "bg-secondary/10 text-secondary",
+  health: "bg-error/10 text-error",
+  business: "bg-warning/10 text-warning",
+  personal: "bg-success/10 text-success",
+};
+
+const priorityIndicators = {
+  high: "bg-error",
+  medium: "bg-warning",
+  low: "bg-success",
 };
 
 export const UpcomingAppointments = () => {
@@ -61,33 +78,68 @@ export const UpcomingAppointments = () => {
         return (
           <div
             key={appointment.id}
-            className="p-3 rounded-lg border hover:bg-muted/50 transition-all hover-lift cursor-pointer animate-slide-up"
+            className={cn(
+              "group relative p-4 rounded-xl transition-all cursor-pointer",
+              "hover:shadow-lg hover:scale-[1.02]",
+              "bg-gradient-to-br",
+              typeGradients[appointment.type as keyof typeof typeGradients],
+              "border border-border/50"
+            )}
           >
-            <div className="flex items-start gap-3">
-              <div className={cn("p-2 rounded-lg", appointment.color, "bg-current/10")}>
-                <Icon className="h-4 w-4" />
+            {/* Priority Indicator */}
+            <div className={cn(
+              "absolute left-0 top-4 bottom-4 w-1 rounded-r-full transition-all",
+              priorityIndicators[appointment.priority as keyof typeof priorityIndicators],
+              "group-hover:w-1.5"
+            )} />
+            
+            <div className="flex items-start gap-3 ml-2">
+              <div className={cn(
+                "p-2.5 rounded-xl shadow-sm",
+                typeColors[appointment.type as keyof typeof typeColors]
+              )}>
+                <Icon className="h-5 w-5" />
               </div>
-              <div className="flex-1 space-y-1">
-                <p className="font-medium text-sm">{appointment.title}</p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Calendar className="h-3 w-3" />
-                  <span>{appointment.date}</span>
-                  <span>•</span>
-                  <Clock className="h-3 w-3" />
-                  <span>{appointment.time}</span>
+              
+              <div className="flex-1 space-y-2">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="font-semibold text-sm">{appointment.title}</p>
+                    <div className="flex items-center gap-3 mt-1">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        <span>{appointment.date}</span>
+                      </div>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Clock className="h-3 w-3" />
+                        <span>{appointment.time}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <Badge 
+                    variant="secondary" 
+                    className="text-xs font-medium"
+                  >
+                    {appointment.duration}
+                  </Badge>
                 </div>
-                <Badge
-                  variant="outline"
-                  className={cn("text-xs", typeColors[appointment.type as keyof typeof typeColors])}
-                >
-                  <MapPin className="h-3 w-3 mr-1" />
-                  {appointment.location}
-                </Badge>
+                
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="h-3 w-3 text-muted-foreground" />
+                  <span className="text-xs text-muted-foreground">{appointment.location}</span>
+                </div>
               </div>
             </div>
           </div>
         );
       })}
+      
+      {appointments.length === 0 && (
+        <div className="text-center py-6">
+          <Clock className="h-10 w-10 text-muted-foreground/30 mx-auto mb-2" />
+          <p className="text-sm text-muted-foreground">Nenhum evento próximo</p>
+        </div>
+      )}
     </div>
   );
 };
